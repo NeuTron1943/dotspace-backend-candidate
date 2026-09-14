@@ -131,4 +131,54 @@ describe('registration API', () => {
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe('USER_NOT_FOUND');
   });
+
+  it('does not exceed event capacity under concurrent registrations', async () => {
+    const requests = Array.from({ length: 20 }, (_, i) =>
+      request(app)
+        .post(`/events/${SEED_EVENT_IDS.singleSeat}/registrations`)
+        .send({ userId: seedUserId(i + 1) }),
+    );
+
+    const responses = await Promise.all(requests);
+
+    const successful = responses.filter((r) => r.status === 201);
+
+    expect(successful).toHaveLength(1);
+    expect(
+      responses.every((r) => [201, 409].includes(r.status)),
+    ).toBe(true);
+
+    expect(await Registration.count({
+      where: { eventId: SEED_EVENT_IDS.singleSeat },
+    })).toBe(1);
+  });
+
+  it('is idempotent for concurrent duplicate registrations', async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        request(app)
+          .post(`/events/${SEED_EVENT_IDS.main}/registrations`)
+          .send({ userId: seedUserId(1) }),
+      ),
+    );
+
+    const successful = responses.filter((r) => r.status === 201);
+    const retries = responses.filter((r) => r.status === 200);
+
+    expect(successful).toHaveLength(1);
+    expect(retries).toHaveLength(19);
+
+    const ids = responses.map((r) => r.body.registration.id);
+
+    expect(new Set(ids).size).toBe(1);
+
+    expect(
+      await Registration.count({
+        where: {
+          eventId: SEED_EVENT_IDS.main,
+          userId: seedUserId(1),
+        },
+      }),
+    ).toBe(1);
+  });
 });
