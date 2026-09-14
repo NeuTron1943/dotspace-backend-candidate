@@ -1,4 +1,4 @@
-import { DataTypes, Op, QueryInterface, Sequelize } from 'sequelize';
+import { QueryInterface } from 'sequelize';
 
 interface MigrationContext {
   context: QueryInterface;
