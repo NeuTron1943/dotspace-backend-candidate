@@ -19,7 +19,7 @@ export async function registerForEvent(
     const eventId = req.params.eventId as string
     const { userId } = req.body as { userId?: string }
 
-    const result = await sequelize.transaction(async (transaction) => {
+    await sequelize.transaction(async (transaction) => {
       // Блокируем мероприятие, на которое записывается
       // Другие транзакции, использующие это мероприятие
       // будут вынуждены ждать завершения этой
